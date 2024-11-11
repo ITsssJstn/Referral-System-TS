@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Auth Demo</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .form-container {
+            margin-bottom: 20px;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        input {
+            display: block;
+            margin: 10px 0;
+            padding: 8px;
+            width: 100%;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        button {
+            padding: 10px 20px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .error {
+            color: red;
+            margin: 10px 0;
+        }
+        #profile {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div id="auth-forms">
+        <div class="form-container">
+            <h2>Регистрация</h2>
+            <form id="register-form">
+                <input type="text" id="register-name" placeholder="Имя" required>
+                <input type="email" id="register-email" placeholder="Email" required>
+                <input type="password" id="register-password" placeholder="Пароль" required>
+                <button type="submit">Зарегистрироваться</button>
+                <div class="error" id="register-error"></div>
+            </form>
+        </div>
+
+        <div class="form-container">
+            <h2>Вход</h2>
+            <form id="login-form">
+                <input type="email" id="login-email" placeholder="Email" required>
+                <input type="password" id="login-password" placeholder="Пароль" required>
+                <button type="submit">Войти</button>
+                <div class="error" id="login-error"></div>
+            </form>
+        </div>
+    </div>
+
+    <div id="profile">
+        <h2>Профиль пользователя</h2>
+        <div id="profile-info"></div>
+        <p><strong>Баланс:</strong> <span id="user-balance">0</span></p>
+        <h3>Приглашенные пользователи:</h3>
+        <ul id="invited-users-list"></ul>
+        <h3>Ваша реферальная ссылка:</h3>
+        <input type="text" id="referral-link" readonly>
+        <button onclick="copyReferralLink()">Скопировать ссылку</button>
+        <button onclick="logout()">Выйти</button>
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost:3000/api';
+
+        // Проверяем авторизацию при загрузке и обновляем каждые 30 секунд
+        checkAuth();
+        setInterval(checkAuth, 30000);
+
+        async function checkAuth() {
+            const token = localStorage.getItem('token');
+            if (token) {
+                try {
+                    const response = await fetch(`${API_URL}/auth/profile`, {
+                        headers: {
+                            'Authorization': `Bearer ${token}`
+                        }
+                    });
+                    if (response.ok) {
+                        const userData = await response.json();
+                        console.log('Profile data:', userData);
+                        showProfile(userData);
+                    } else {
+                        showAuthForms();
+                    }
+                } catch (error) {
+                    console.error('Auth check error:', error);
+                    showAuthForms();
+                }
+            }
+        }
+
+        document.getElementById('register-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const registerError = document.getElementById('register-error');
+            registerError.textContent = '';
+
+            try {
+                // Получаем реферальный код из URL если он есть
+                const urlParams = new URLSearchParams(window.location.search);
+                const referralCode = urlParams.get('referralCode');
+
+                const response = await fetch(`${API_URL}/auth/register`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        name: document.getElementById('register-name').value,
+                        email: document.getElementById('register-email').value,
+                        password: document.getElementById('register-password').value,
+                        referralCode: referralCode
+                    })
+                });
+
+                const data = await response.json();
+                console.log('Registration response:', data);
+
+                if (!response.ok) {
+                    throw new Error(data.error || 'Ошибка при регистрации');
+                }
+
+                localStorage.setItem('token', data.token);
+                await checkAuth(); // Обновляем профиль после регистрации
+            } catch (error) {
+                console.error('Registration error:', error);
+                registerError.textContent = error.message;
+            }
+        });
+
+        document.getElementById('login-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const loginError = document.getElementById('login-error');
+            loginError.textContent = '';
+
+            try {
+                const response = await fetch(`${API_URL}/auth/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        email: document.getElementById('login-email').value,
+                        password: document.getElementById('login-password').value
+                    })
+                });
+
+                const data = await response.json();
+                if (!response.ok) {
+                    throw new Error(data.error || 'Ошибка при входе');
+                }
+
+                localStorage.setItem('token', data.token);
+                await checkAuth(); // Обновляем профиль после входа
+            } catch (error) {
+                console.error('Login error:', error);
+                loginError.textContent = error.message;
+            }
+        });
+
+        function showProfile(user) {
+            console.log('Showing profile for user:', user);
+            document.getElementById('auth-forms').style.display = 'none';
+            document.getElementById('profile').style.display = 'block';
+
+            // Заполняем информацию о пользователе
+            document.getElementById('profile-info').innerHTML = `
+                <p><strong>Имя:</strong> ${user.name}</p>
+                <p><strong>Email:</strong> ${user.email}</p>
+            `;
+
+            // Отображаем баланс
+            document.getElementById('user-balance').textContent = user.balance !== undefined ? user.balance : '0';
+
+            // Отображаем список приглашенных пользователей
+            const invitedUsersList = document.getElementById('invited-users-list');
+            invitedUsersList.innerHTML = '';
+
+            if (user.invitedUsers && user.invitedUsers.length > 0) {
+                user.invitedUsers.forEach(invitedUser => {
+                    const listItem = document.createElement('li');
+                    listItem.textContent = `${invitedUser.name} (${invitedUser.email})`;
+                    invitedUsersList.appendChild(listItem);
+                });
+            } else {
+                invitedUsersList.innerHTML = '<li>Нет приглашенных пользователей</li>';
+            }
+
+            // Устанавливаем реферальную ссылку
+            const referralLinkInput = document.getElementById('referral-link');
+            referralLinkInput.value = `${window.location.origin}/register?referralCode=${user.referralCode || ''}`;
+        }
+
+        function copyReferralLink() {
+            const referralLinkInput = document.getElementById('referral-link');
+            referralLinkInput.select();
+            referralLinkInput.setSelectionRange(0, 99999);
+
+            navigator.clipboard.writeText(referralLinkInput.value)
+                .then(() => alert("Реферальная ссылка скопирована!"))
+                .catch(err => console.error("Ошибка копирования ссылки:", err));
+        }
+
+        function showAuthForms() {
+            document.getElementById('auth-forms').style.display = 'block';
+            document.getElementById('profile').style.display = 'none';
+        }
+
+        function logout() {
+            localStorage.removeItem('token');
+            showAuthForms();
+        }
+    </script>
+</body>
+</html>

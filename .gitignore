@@ -1,0 +1,69 @@
+# Dependencies
+node_modules/
+jspm_packages/
+bower_components/
+
+# Build output
+dist/
+build/
+out/
+.next
+.nuxt
+.vuepress/dist
+.docusaurus
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+.pnpm-debug.log*
+
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# Cache directories
+.cache/
+.parcel-cache/
+.npm
+.eslintcache
+.stylelintcache
+.rpt2_cache/
+.rts2_cache_*/
+.temp/
+.fusebox/
+
+# TypeScript
+*.tsbuildinfo
+
+# Testing and coverage
+coverage/
+.nyc_output/
+lib-cov/
+
+# IDE
+.vscode/
+.vscode-test/
+.idea/
+*.sublime-*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Misc
+*.pid
+*.seed
+*.pid.lock
+.lock-wscript
+.node_repl_history
+.yarn-integrity
+.yarn/
+.pnp.*
+.tern-port
+.serverless/
+.dynamodb/
